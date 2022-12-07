@@ -12,7 +12,9 @@ using std::chrono::duration_cast;
 using std::chrono::duration;
 using std::chrono::milliseconds;
 
-void timed_portion(int row_begin_size, int* row_begin, int* col_indices, double* values);
+long timed_portion(int row_begin_size, int* row_begin, int* col_indices, double* values, int& sigma_count);
+void do_row(int row_begin_size, int* row_begin, int* col_indices, double* values, std::ostream &out);
+void print_csr(int row_begin_size, int i, int* row_begin, int* col_indices, double* values);
 
 template <typename S> std::ostream& operator<<(std::ostream& os,
                     const std::vector<S>& vector)
@@ -59,9 +61,9 @@ Site* get_site(const std::string &name)
     return site;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    std::ifstream txt("graph.txt");
+    std::ifstream txt(argv[1]);
 
     std::string first_token , second_token;
     while (txt >> first_token)
@@ -108,10 +110,28 @@ int main()
     print_csr(row_begin_size, next_row_begin, row_begin, col_indices, values);
 #endif
 
+    std::ofstream rb("timings.csv");
+
+    rb << "Test No.;Scheduling Method;Chunk Size;No. of Iterations;Timings in secs for each number of threads;;;;;;;;\n";
+    rb << ";;;;1;2;3;4;5;6;7;8;\n";
+
+    int chunk_sizes[] = {5,20,50,100,1000, 10000, 40000,100000,400000, 1000000};
+    omp_sched_t scheduling[] = {omp_sched_auto, omp_sched_dynamic, omp_sched_static, omp_sched_guided};
+    std::string scheduling_names[] = {"auto", "dynamic", "static", "guided"};
+
+    for (size_t sched_index = 0; sched_index < 4; sched_index++)
+    {
+        for (size_t i = 0; i < 10; i++)
+        {
+            omp_set_schedule(scheduling[sched_index], chunk_sizes[i]);
+            rb << 1 + sched_index*10 + i << ";" << scheduling_names[sched_index] << ";" <<chunk_sizes[i]<<";";
+            do_row(row_begin_size, row_begin, col_indices, values, rb);
+        }
+    }
     
 }
 
-void timed_portion(int row_begin_size, int* row_begin, int* col_indices, double* values)
+long timed_portion(int row_begin_size, int* row_begin, int* col_indices, double* values, int& sigma_count)
 {
 
 
@@ -127,7 +147,6 @@ void timed_portion(int row_begin_size, int* row_begin, int* col_indices, double*
     
     //BEGIN TIMED PORTION
     auto t1 = high_resolution_clock::now();
-    int sigma_count = 0;
     // int t_thr;
     // #pragma omp threadprivate(t_thr)
 
@@ -198,51 +217,57 @@ void timed_portion(int row_begin_size, int* row_begin, int* col_indices, double*
         }
     }
 
-    for (size_t i = 0; i < 5; i++)
-    {
-        std::cout << sites_by_id[max_indices[i]]->name << ": " << max_values[i] << "\n";
-    }
-    
     //END TIMED PORTION
     auto t2 = high_resolution_clock::now();
+    
+    std::ofstream rb("top5.txt");
 
+    for (size_t i = 0; i < 5; i++)
+    {
+        rb << sites_by_id[max_indices[i]]->name << ": " << max_values[i] << "\n";
+    }
+    
     /* Getting number of milliseconds as an integer. */
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
-    auto ms_int2 = duration_cast<milliseconds>(t3 - t1);
 
-    std::cout << ms_int.count() << "ms\n";
-    std::cout << ms_int2.count() << "ms\n";
-    //std::cout << omp_get_num_threads << "threads\n";
+    return ms_int.count();
 }
 
-void do_row(int row_begin_size, int* row_begin, int* col_indices, double* values)
+void do_row(int row_begin_size, int* row_begin, int* col_indices, double* values, std::ostream &out)
 {
-    for (size_t i = 0; i < 8; i++)
+    int sigma_count = 0;
+    omp_set_num_threads(1);
+    long time = timed_portion(row_begin_size, row_begin, col_indices, values, sigma_count);
+    out << sigma_count << ";";
+    out << time;
+    out << ";";
+
+    for (size_t i = 2; i <= 8; i++)
     {
         omp_set_num_threads(i);
-        timed_portion(row_begin_size, row_begin, col_indices, values);
+        out << timed_portion(row_begin_size, row_begin, col_indices, values, sigma_count);
+        out << ";";
     }
+    out << "\n";
 }
 
 void print_csr(int row_begin_size, int next_row_begin, int* row_begin, int* col_indices, double* values)
 {
     std::ofstream rb("csr.txt");
 
-    for (size_t i = 0; i < row_begin_size-1; i++)
+    for (size_t i = 0; i < row_begin_size; i++)
     {
-        ci << sites_by_id[i]->incoming_edges.size() << "\n";
-        //std::cout << row_begin[i] << " ";
+        rb << row_begin[i] << " ";
     }
-    std::cout << std::endl;
+    rb << "\n";
     for (size_t i = 0; i < next_row_begin; i++)
     {
-        std::cout << values[i] << " ";
+        rb << values[i] << " ";
     }
-    std::cout << std::endl;
-
+    rb << "\n";
     for (size_t i = 0; i < next_row_begin; i++)
     {
-        std::cout << col_indices[i] << " ";
+        rb << col_indices[i] << " ";
     }
-    std::cout << std::endl;
+    rb << "\n";
 }
