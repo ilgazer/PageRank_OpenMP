@@ -230,6 +230,9 @@ long timed_portion(int row_begin_size, int* row_begin, int* col_indices, double*
     /* Getting number of milliseconds as an integer. */
     auto ms_int = duration_cast<milliseconds>(t2 - t1);
 
+    delete r;
+    delete r_next;
+
     return ms_int.count();
 }
 
