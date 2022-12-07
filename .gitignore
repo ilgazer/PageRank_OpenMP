@@ -1,0 +1,6 @@
+test.test
+.vscode
+parallel/*
+timing.csv
+test
+test.o

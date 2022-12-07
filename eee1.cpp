@@ -48,7 +48,7 @@ static std::vector<Site *> sites_by_id;
 Site* get_site(const std::string &name)
 {
     Site *site;
-    if (sites_by_ref.find(name) == sites_by_ref.end())
+    if (sites_by_ref.count(name) == 0)
     {
         site = new Site{name, (int)sites_by_id.size(), 0};
         sites_by_id.push_back(site);
@@ -72,7 +72,6 @@ int main(int argc, char *argv[])
 
         Site* from = get_site(first_token);
         Site* to = get_site(second_token);
-
         from->num_outgoing_edges++;
         to->incoming_edges.push_back(from->id);
     }
@@ -85,10 +84,12 @@ int main(int argc, char *argv[])
     size_t row_begin_size = sites_by_id.size() + 1;
     int* row_begin = new int[row_begin_size];
 
-    size_t next_row_begin = 0;
+    int next_row_begin = 0;
     row_begin[0] = 0;
-    for(size_t i = 1; i < row_begin_size; i++){
-        next_row_begin += sites_by_id[i - 1]->incoming_edges.size();
+    int row_size;
+    for(int i = 1; i < row_begin_size; i++){
+        row_size = sites_by_id[i - 1]->incoming_edges.size();
+        next_row_begin += row_size;
         row_begin[i] = next_row_begin;
     }
 
