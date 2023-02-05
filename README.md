@@ -1,2 +1,3 @@
-To run:
-g++-12 -c eee1.cpp -fopenmp -o test.o; g++-12 test.o -o test -fopenmp -lpthread; ./test
+# PageRank_OpenMP
+
+This is an implementation of Google's PageRank algorithm in OpenMp. It processes and ranks the websites in the web graph provided by web-graph.org, and returns the five highest-ranking websites along with their scores.
